@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+
+P=1
+N=1000
+LIMIT=$((100*1000*1000))
+
+echo "P = ${P}"
+
+mvn clean >&2
+mvn package >&2
+
+STAMP="$(date +%Y%m%d-%H%M%S)"
+TIMING_FILE="${STAMP}-timings.log"
+DEBUG_FILE="${STAMP}-debug.log"
+
+while [ ${N} -le ${LIMIT} ]; do
+  spark-submit \
+    --class com.cloudera.datascience.montecarlorisk.MonteCarloRisk \
+    --master "local[${P}]" \
+    --conf spark.executor.memory=8g \
+    --conf spark.driver.maxResultSize=0 \
+    target/montecarlo-risk-0.0.1-SNAPSHOT.jar \
+    data/instruments.csv ${N} ${P} data/means.csv data/covariances.csv 2>>${DEBUG_FILE} | tee -a ${TIMING_FILE}
+  N=$((${N} * 2))
+done

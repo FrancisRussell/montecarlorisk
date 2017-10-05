@@ -60,6 +60,7 @@ object MonteCarloRisk {
     val seedRdd = sc.parallelize(seeds, parallelism)
 
     // Main computation: run simulations and compute aggregate return for each
+    val start = System.nanoTime();
     val trialsRdd = seedRdd.flatMap(trialValues(_, numTrials / parallelism,
       broadcastInstruments.value, factorMeans, factorCovariances))
 
@@ -68,16 +69,21 @@ object MonteCarloRisk {
 
     // Calculate VaR
     val varFivePercent = trialsRdd.takeOrdered(math.max(numTrials / 20, 1)).last
-    println("VaR: " + varFivePercent)
+    //println("VaR: " + varFivePercent)
 
     // Kernel density estimation
     val domain = Range.Double(20.0, 60.0, .2).toArray
     val densities = KernelDensity.estimate(trialsRdd, 0.25, domain)
+    /*
     val pw = new PrintWriter("densities.csv")
     for (point <- domain.zip(densities)) {
       pw.println(point._1 + "," + point._2)
     }
     pw.close()
+    */
+    val end = System.nanoTime();
+    val duration = (end - start) / 1e9;
+    println("" + numTrials + "\t" + duration);
   }
 
   def trialValues(seed: Long, numTrials: Int, instruments: Seq[Instrument],
