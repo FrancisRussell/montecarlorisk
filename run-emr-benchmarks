@@ -1,0 +1,24 @@
+#!/bin/bash
+set -eu
+
+NODES=${1?}
+CORES_PER_NODE=${2?}
+PARTITIONS=$(( ${NODES} * ${CORES_PER_NODE} * 4 ))
+
+for MULTIPLIER in 10 20 30 40 50; do
+        N=$(( ${NODES} * ${CORES_PER_NODE} * ${MULTIPLIER} * 1000000 ))
+        echo "Number of trials: ${N}"
+        /usr/bin/time -f "N=${N}, seconds=%e" spark-submit --master yarn --deploy-mode client \
+          --class com.cloudera.datascience.montecarlorisk.MonteCarloRisk \
+          --conf "spark.dynamicAllocation.enabled=false" \
+          --conf "spark.kryoserializer.buffer.max=128m" \
+          --conf "spark.driver.maxResultSize=4096m" \
+          --driver-memory=4g \
+          --executor-memory=5g \
+          --num-executors=${NODES} \
+          --executor-cores=${CORES_PER_NODE} \
+          --files data/instruments.csv,data/covariances.csv,data/means.csv \
+          montecarlo-risk-0.0.1-SNAPSHOT.jar \
+          data/instruments.csv ${N} ${PARTITIONS} data/means.csv data/covariances.csv \
+          2>&1 | tee -a "log-n=${N}.txt"
+done
